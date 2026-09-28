@@ -1,0 +1,271 @@
+<!DOCTYPE html>
+<html lang="uz">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ToxGramm - Shaxsiy Telegram</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+
+        body {
+            background-color: #0f172a;
+            color: #f8fafc;
+            height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        /* Kirish oynasi */
+        .login-container {
+            background: #1e293b;
+            padding: 40px;
+            border-radius: 16px;
+            width: 380px;
+            text-align: center;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.5);
+            border: 1px solid #334155;
+        }
+
+        .logo {
+            font-size: 48px;
+            margin-bottom: 10px;
+        }
+
+        .login-container h2 {
+            margin-bottom: 5px;
+            color: #38bdf8;
+        }
+
+        .login-container p {
+            font-size: 13px;
+            color: #94a3b8;
+            margin-bottom: 25px;
+        }
+
+        .form-group {
+            margin-bottom: 15px;
+        }
+
+        .form-group input {
+            width: 100%;
+            padding: 12px;
+            background: #0f172a;
+            border: 1px solid #334155;
+            border-radius: 8px;
+            color: white;
+            outline: none;
+        }
+
+        .login-container button {
+            width: 100%;
+            padding: 12px;
+            background: #0284c7;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: 0.2s;
+        }
+
+        .login-container button:hover {
+            background: #0369a1;
+        }
+
+        /* Asosiy ilova oynasi */
+        .app-container {
+            display: none;
+            width: 90vw;
+            height: 85vh;
+            background: #1e293b;
+            border-radius: 12px;
+            overflow: hidden;
+            border: 1px solid #334155;
+        }
+
+        .sidebar {
+            width: 300px;
+            background: #0f172a;
+            border-right: 1px solid #334155;
+            padding: 20px;
+            overflow-y: auto;
+        }
+
+        .sidebar h3 {
+            color: #38bdf8;
+            margin-bottom: 15px;
+        }
+
+        .chat-main {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            background: #1e293b;
+        }
+
+        .chat-header {
+            padding: 15px 20px;
+            background: #0f172a;
+            border-bottom: 1px solid #334155;
+            font-weight: bold;
+        }
+
+        .messages-box {
+            flex: 1;
+            padding: 20px;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .message {
+            max-width: 60%;
+            padding: 10px 14px;
+            border-radius: 10px;
+            font-size: 14px;
+            background: #3b82f6;
+            color: white;
+            align-self: flex-end;
+        }
+
+        .send-box {
+            padding: 15px;
+            background: #0f172a;
+            display: flex;
+            gap: 10px;
+            border-top: 1px solid #334155;
+        }
+
+        .send-box input {
+            flex: 1;
+            padding: 10px;
+            background: #1e293b;
+            border: 1px solid #334155;
+            border-radius: 6px;
+            color: white;
+            outline: none;
+        }
+
+        .send-box button {
+            padding: 0 20px;
+            background: #0284c7;
+            border: none;
+            border-radius: 6px;
+            color: white;
+            cursor: pointer;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Kirish Qismi -->
+    <div class="login-container" id="loginCard">
+        <div class="logo">💬</div>
+        <h2>ToxGramm</h2>
+        <p>Telegram API orqali ulanish</p>
+        
+        <div class="form-group">
+            <input type="text" id="apiId" placeholder="Telegram API ID">
+        </div>
+        <div class="form-group">
+            <input type="text" id="apiHash" placeholder="Telegram API Hash">
+        </div>
+        <div class="form-group">
+            <input type="text" id="phoneNumber" placeholder="Telefon raqam (+998...)">
+        </div>
+        <button id="loginBtn">Bog'lanish</button>
+    </div>
+
+    <!-- Chat Oynasi -->
+    <div class="app-container" id="appContainer">
+        <div class="sidebar">
+            <h3>ToxGramm Chats</h3>
+            <div id="chatsList">Mening Xatcho'plarim</div>
+        </div>
+        <div class="chat-main">
+            <div class="chat-header">Shaxsiy Makon</div>
+            <div class="messages-box" id="messagesBox">
+                <div class="message">ToxGramm muvaffaqiyatli ulandi!</div>
+            </div>
+            <div class="send-box">
+                <input type="text" id="msgInput" placeholder="Xabar yozing...">
+                <button id="sendBtn">➤</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Telegram MTProto Kutubxonasi va Logika -->
+    <script type="module">
+        import { MTProto } from 'https://cdn.jsdelivr.net/npm/@mtproto/core@latest/dist/mtproto.es.js';
+
+        const loginCard = document.getElementById('loginCard');
+        const appContainer = document.getElementById('appContainer');
+        const loginBtn = document.getElementById('loginBtn');
+        const sendBtn = document.getElementById('sendBtn');
+        const msgInput = document.getElementById('msgInput');
+        const messagesBox = document.getElementById('messagesBox');
+
+        let activeClient = null;
+
+        loginBtn.addEventListener('click', async () => {
+            const api_id = document.getElementById('apiId').value.trim();
+            const api_hash = document.getElementById('apiHash').value.trim();
+            const phone = document.getElementById('phoneNumber').value.trim();
+
+            if (!api_id || !api_hash || !phone) {
+                alert("Barcha maydonlarni to'ldiring!");
+                return;
+            }
+
+            try {
+                const mtproto = new MTProto({
+                    api_id: Number(api_id),
+                    api_hash: api_hash,
+                });
+
+                const { phone_code_hash } = await mtproto.call('auth.sendCode', {
+                    phone_number: phone,
+                    settings: { _: 'codeSettings' },
+                });
+
+                const code = prompt("Telegram ilovangizga kelgan kodni kiriting:");
+                if (!code) return;
+
+                await mtproto.call('auth.signIn', {
+                    phone_number: phone,
+                    phone_code_hash: phone_code_hash,
+                    phone_code: code,
+                });
+
+                activeClient = mtproto;
+                alert("Muvaffaqiyatli ulandingiz!");
+                loginCard.style.display = 'none';
+                appContainer.style.display = 'flex';
+
+            } catch (error) {
+                console.error(error);
+                alert("Xatolik: " + error.message);
+            }
+        });
+
+        sendBtn.addEventListener('click', () => {
+            const text = msgInput.value.trim();
+            if (!text) return;
+
+            const msgDiv = document.createElement('div');
+            msgDiv.classList.add('message');
+            msgDiv.textContent = text;
+            messagesBox.appendChild(msgDiv);
+            msgInput.value = '';
+            messagesBox.scrollTop = messagesBox.scrollHeight;
+        });
+    </script>
+</body>
+</html>
