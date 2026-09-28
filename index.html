@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ToxGramm - Shaxsiy Telegram</title>
+    <title>ToxGramm - Shaxsiy Makon</title>
     <style>
         * {
             box-sizing: border-box;
@@ -60,6 +60,8 @@
             border-radius: 8px;
             color: white;
             outline: none;
+            text-align: center;
+            font-size: 15px;
         }
 
         .login-container button {
@@ -94,12 +96,25 @@
             background: #0f172a;
             border-right: 1px solid #334155;
             padding: 20px;
-            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
         }
 
         .sidebar h3 {
             color: #38bdf8;
             margin-bottom: 15px;
+        }
+
+        .chat-list {
+            flex: 1;
+            overflow-y: auto;
+        }
+
+        .chat-item {
+            padding: 10px;
+            background: #1e293b;
+            border-radius: 8px;
+            cursor: pointer;
         }
 
         .chat-main {
@@ -114,6 +129,8 @@
             background: #0f172a;
             border-bottom: 1px solid #334155;
             font-weight: bold;
+            display: flex;
+            justify-content: space-between;
         }
 
         .messages-box {
@@ -133,6 +150,7 @@
             background: #3b82f6;
             color: white;
             align-self: flex-end;
+            word-break: break-word;
         }
 
         .send-box {
@@ -145,10 +163,10 @@
 
         .send-box input {
             flex: 1;
-            padding: 10px;
+            padding: 12px;
             background: #1e293b;
             border: 1px solid #334155;
-            border-radius: 6px;
+            border-radius: 8px;
             color: white;
             outline: none;
         }
@@ -157,115 +175,105 @@
             padding: 0 20px;
             background: #0284c7;
             border: none;
-            border-radius: 6px;
+            border-radius: 8px;
             color: white;
             cursor: pointer;
+            font-weight: bold;
         }
     </style>
 </head>
 <body>
 
-    <!-- Kirish Qismi -->
+    <!-- Kirish Qismi (Faqat raqam kiritiladi) -->
     <div class="login-container" id="loginCard">
         <div class="logo">💬</div>
         <h2>ToxGramm</h2>
-        <p>Telegram API orqali ulanish</p>
+        <p>Shaxsiy yozishmalar va qaydlar</p>
         
         <div class="form-group">
-            <input type="text" id="apiId" placeholder="Telegram API ID">
+            <input type="text" id="phoneNumber" placeholder="+998 (__) ___-__-__">
         </div>
-        <div class="form-group">
-            <input type="text" id="apiHash" placeholder="Telegram API Hash">
-        </div>
-        <div class="form-group">
-            <input type="text" id="phoneNumber" placeholder="Telefon raqam (+998...)">
-        </div>
-        <button id="loginBtn">Bog'lanish</button>
+        <button id="loginBtn">Kirish</button>
     </div>
 
     <!-- Chat Oynasi -->
     <div class="app-container" id="appContainer">
         <div class="sidebar">
-            <h3>ToxGramm Chats</h3>
-            <div id="chatsList">Mening Xatcho'plarim</div>
+            <h3>ToxGramm</h3>
+            <div class="chat-list">
+                <div class="chat-item">🔒 Mening Xatcho'plarim</div>
+            </div>
         </div>
         <div class="chat-main">
-            <div class="chat-header">Shaxsiy Makon</div>
+            <div class="chat-header">
+                <span id="userPhoneDisplay">Shaxsiy Makon</span>
+                <span style="color: #10b981; font-size: 12px;">● Faol</span>
+            </div>
             <div class="messages-box" id="messagesBox">
-                <div class="message">ToxGramm muvaffaqiyatli ulandi!</div>
+                <div class="message">Xush kelibsiz! ToxGramm muvaffaqiyatli ishga tushdi.</div>
             </div>
             <div class="send-box">
-                <input type="text" id="msgInput" placeholder="Xabar yozing...">
+                <input type="text" id="msgInput" placeholder="Xabar yozing..." autocomplete="off">
                 <button id="sendBtn">➤</button>
             </div>
         </div>
     </div>
 
-    <!-- Telegram MTProto Kutubxonasi va Logika -->
-    <script type="module">
-        import { MTProto } from 'https://cdn.jsdelivr.net/npm/@mtproto/core@latest/dist/mtproto.es.js';
-
+    <script>
         const loginCard = document.getElementById('loginCard');
         const appContainer = document.getElementById('appContainer');
         const loginBtn = document.getElementById('loginBtn');
+        const phoneNumberInput = document.getElementById('phoneNumber');
+        const userPhoneDisplay = document.getElementById('userPhoneDisplay');
+        
         const sendBtn = document.getElementById('sendBtn');
         const msgInput = document.getElementById('msgInput');
         const messagesBox = document.getElementById('messagesBox');
 
-        let activeClient = null;
+        // Oldindan saqlangan xabarlarni yuklash
+        document.addEventListener("DOMContentLoaded", () => {
+            const savedMsgs = JSON.parse(localStorage.getItem("tox_messages")) || [];
+            savedMsgs.forEach(text => appendMessage(text, false));
+        });
 
-        loginBtn.addEventListener('click', async () => {
-            const api_id = document.getElementById('apiId').value.trim();
-            const api_hash = document.getElementById('apiHash').value.trim();
-            const phone = document.getElementById('phoneNumber').value.trim();
-
-            if (!api_id || !api_hash || !phone) {
-                alert("Barcha maydonlarni to'ldiring!");
+        loginBtn.addEventListener('click', () => {
+            const phone = phoneNumberInput.value.trim();
+            if (!phone) {
+                alert("Iltimos, telefon raqamingizni kiriting!");
                 return;
             }
 
-            try {
-                const mtproto = new MTProto({
-                    api_id: Number(api_id),
-                    api_hash: api_hash,
-                });
-
-                const { phone_code_hash } = await mtproto.call('auth.sendCode', {
-                    phone_number: phone,
-                    settings: { _: 'codeSettings' },
-                });
-
-                const code = prompt("Telegram ilovangizga kelgan kodni kiriting:");
-                if (!code) return;
-
-                await mtproto.call('auth.signIn', {
-                    phone_number: phone,
-                    phone_code_hash: phone_code_hash,
-                    phone_code: code,
-                });
-
-                activeClient = mtproto;
-                alert("Muvaffaqiyatli ulandingiz!");
-                loginCard.style.display = 'none';
-                appContainer.style.display = 'flex';
-
-            } catch (error) {
-                console.error(error);
-                alert("Xatolik: " + error.message);
-            }
+            loginCard.style.display = 'none';
+            appContainer.style.display = 'flex';
+            userPhoneDisplay.textContent = phone;
         });
 
-        sendBtn.addEventListener('click', () => {
+        sendBtn.addEventListener('click', sendMessage);
+        msgInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') sendMessage();
+        });
+
+        function sendMessage() {
             const text = msgInput.value.trim();
             if (!text) return;
 
+            appendMessage(text, true);
+            msgInput.value = '';
+        }
+
+        function appendMessage(text, save) {
             const msgDiv = document.createElement('div');
             msgDiv.classList.add('message');
             msgDiv.textContent = text;
             messagesBox.appendChild(msgDiv);
-            msgInput.value = '';
             messagesBox.scrollTop = messagesBox.scrollHeight;
-        });
+
+            if (save) {
+                let savedMsgs = JSON.parse(localStorage.getItem("tox_messages")) || [];
+                savedMsgs.push(text);
+                localStorage.setItem("tox_messages", JSON.stringify(savedMsgs));
+            }
+        }
     </script>
 </body>
 </html>
